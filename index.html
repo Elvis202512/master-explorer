@@ -2,100 +2,75 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>MASTER EXPLORER | FINAL CLOUD ENGINE</title>
+    <title>MASTER EXPLORER | HIGH-FIDELITY ENGINE</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        body { background: #000; color: #00ff41; font-family: 'Courier New', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .terminal { border: 2px solid #00ff41; padding: 40px; background: #050505; box-shadow: 0 0 20px #00ff41; text-align: center; width: 80%; max-width: 600px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 25px; }
-        .btn { background: transparent; color: #00ff41; border: 1px solid #00ff41; padding: 15px; cursor: pointer; font-weight: bold; text-transform: uppercase; }
-        .btn:hover { background: #00ff41; color: #000; box-shadow: 0 0 10px #00ff41; }
-        #status { margin-top: 25px; color: #ffcc00; font-size: 0.9em; min-height: 1.2em; }
+        body { background: #000; color: #00ff41; font-family: monospace; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .terminal { border: 2px solid #00ff41; padding: 30px; background: #050505; box-shadow: 0 0 20px #00ff41; text-align: center; width: 90%; max-width: 600px; }
+        .btn { background: transparent; color: #00ff41; border: 1px solid #00ff41; padding: 15px 30px; cursor: pointer; font-weight: bold; margin-top: 20px; text-transform: uppercase; }
+        .btn:hover { background: #00ff41; color: #000; }
+        #status { margin-top: 20px; color: #ffcc00; font-size: 0.8em; }
+        /* Zone invisible pour le rendu */
+        #render-zone { display: none; background: white; color: black; padding: 20px; }
     </style>
 </head>
 <body>
 
 <div class="terminal">
-    <h1>[ MASTER EXPLORER V16 ]</h1>
-    <p>> STATUT : NOYAU AUTONOME ACTIF</p>
-    
-    <div class="grid">
-        <button class="btn" onclick="openEngine('word')">Word vers PDF</button>
-        <button class="btn" onclick="openEngine('excel')">Excel vers PDF</button>
-        <button class="btn" onclick="openEngine('img')">Images vers PDF</button>
-        <button class="btn" onclick="location.reload()">Reset</button>
-    </div>
-
-    <input type="file" id="fileIn" hidden>
-    <div id="status">EN ATTENTE DE FICHIER...</div>
+    <h2>[ MASTER ENGINE V17 : FIDÉLITÉ MAX ]</h2>
+    <p>> MODE : RENDU VISUEL + IMAGES (133 PAGES)</p>
+    <button class="btn" onclick="document.getElementById('in').click()">CONVERTIR AVEC IMAGES</button>
+    <input type="file" id="in" hidden onchange="processFull(this.files[0])">
+    <div id="status">SYSTÈME PRÊT</div>
 </div>
 
+<div id="render-zone"></div>
+
 <script>
-    const fileIn = document.getElementById('fileIn');
-    const status = document.getElementById('status');
-    let mode = '';
+    async function processFull(file) {
+        const status = document.getElementById('status');
+        const renderZone = document.getElementById('render-zone');
+        status.innerText = "> EXTRACTION DES IMAGES ET STYLES...";
 
-    function openEngine(m) {
-        mode = m;
-        fileIn.accept = m === 'word' ? '.docx' : (m === 'excel' ? '.xlsx, .xls' : 'image/*');
-        fileIn.click();
-    }
-
-    fileIn.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        status.innerText = "> INITIALISATION DU MOTEUR MULTI-PAGES...";
         const reader = new FileReader();
-
-        reader.onload = async (event) => {
+        reader.onload = async (e) => {
             try {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
+                // Étape 1 : Conversion DOCX vers HTML (garde les images et styles)
+                const options = {
+                    styleMap: [
+                        "p[style-name='Title'] => h1:fresh",
+                        "p[style-name='Heading 1'] => h2:fresh"
+                    ]
+                };
                 
-                if (mode === 'word') {
-                    const result = await mammoth.extractRawText({ arrayBuffer: event.target.result });
-                    const lines = doc.splitTextToSize(result.value, 180);
-                    
-                    let y = 10;
-                    for (let i = 0; i < lines.length; i++) {
-                        if (y > 280) { // Si on dépasse la hauteur de la page A4
-                            doc.addPage();
-                            y = 10;
-                        }
-                        doc.text(lines[i], 10, y);
-                        y += 7;
-                    }
-                } 
-                else if (mode === 'excel') {
-                    const data = new Uint8Array(event.target.result);
-                    const wb = XLSX.read(data, {type: 'array'});
-                    const text = XLSX.utils.sheet_to_txt(wb.Sheets[wb.SheetNames[0]]);
-                    const lines = doc.splitTextToSize(text, 180);
-                    let y = 10;
-                    for (let line of lines) {
-                        if (y > 280) { doc.addPage(); y = 10; }
-                        doc.text(line, 10, y);
-                        y += 7;
-                    }
-                }
-                else if (mode === 'img') {
-                    doc.addImage(event.target.result, 'JPEG', 10, 10, 180, 150);
-                }
+                const result = await mammoth.convertToHtml({arrayBuffer: e.target.result}, options);
+                renderZone.innerHTML = result.value; // On place le contenu dans la zone blanche
 
-                doc.save(`Master_${file.name.split('.')[0]}.pdf`);
-                status.innerText = "> ✅ OPÉRATION RÉUSSIE (MOTEUR LOCAL)";
+                status.innerText = "> GÉNÉRATION DU PDF (133 PAGES)... PATIENTEZ";
+
+                // Étape 2 : Conversion HTML vers PDF avec html2pdf
+                const opt = {
+                    margin:       10,
+                    filename:     file.name.replace(".docx", ".pdf"),
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2, useCORS: true },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+                };
+
+                // Lancement de la capture
+                await html2pdf().set(opt).from(renderZone).save();
+
+                status.innerText = "> ✅ RÉUSSI : MISE EN PAGE CONSERVÉE";
+                renderZone.innerHTML = ""; // Nettoyage
             } catch (err) {
-                status.innerText = "> ❌ ERREUR CRITIQUE DE SEGMENTATION";
+                status.innerText = "> ❌ ERREUR : LE FICHIER EST TROP LOURD";
+                console.error(err);
             }
         };
-
-        if (mode === 'img') reader.readAsDataURL(file);
-        else reader.readAsArrayBuffer(file);
-    };
+        reader.readAsArrayBuffer(file);
+    }
 </script>
 </body>
 </html>

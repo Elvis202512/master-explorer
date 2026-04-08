@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>MASTER EXPLORER | FINAL CLOUD ENGINE</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        body { background: #000; color: #00ff41; font-family: 'Courier New', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .terminal { border: 2px solid #00ff41; padding: 40px; background: #050505; box-shadow: 0 0 20px #00ff41; text-align: center; width: 80%; max-width: 600px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 25px; }
+        .btn { background: transparent; color: #00ff41; border: 1px solid #00ff41; padding: 15px; cursor: pointer; font-weight: bold; text-transform: uppercase; }
+        .btn:hover { background: #00ff41; color: #000; box-shadow: 0 0 10px #00ff41; }
+        #status { margin-top: 25px; color: #ffcc00; font-size: 0.9em; min-height: 1.2em; }
+    </style>
+</head>
+<body>
+
+<div class="terminal">
+    <h1>[ MASTER EXPLORER V16 ]</h1>
+    <p>> STATUT : NOYAU AUTONOME ACTIF</p>
+    
+    <div class="grid">
+        <button class="btn" onclick="openEngine('word')">Word vers PDF</button>
+        <button class="btn" onclick="openEngine('excel')">Excel vers PDF</button>
+        <button class="btn" onclick="openEngine('img')">Images vers PDF</button>
+        <button class="btn" onclick="location.reload()">Reset</button>
+    </div>
+
+    <input type="file" id="fileIn" hidden>
+    <div id="status">EN ATTENTE DE FICHIER...</div>
+</div>
+
+<script>
+    const fileIn = document.getElementById('fileIn');
+    const status = document.getElementById('status');
+    let mode = '';
+
+    function openEngine(m) {
+        mode = m;
+        fileIn.accept = m === 'word' ? '.docx' : (m === 'excel' ? '.xlsx, .xls' : 'image/*');
+        fileIn.click();
+    }
+
+    fileIn.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        status.innerText = "> INITIALISATION DU MOTEUR MULTI-PAGES...";
+        const reader = new FileReader();
+
+        reader.onload = async (event) => {
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                if (mode === 'word') {
+                    const result = await mammoth.extractRawText({ arrayBuffer: event.target.result });
+                    const lines = doc.splitTextToSize(result.value, 180);
+                    
+                    let y = 10;
+                    for (let i = 0; i < lines.length; i++) {
+                        if (y > 280) { // Si on dépasse la hauteur de la page A4
+                            doc.addPage();
+                            y = 10;
+                        }
+                        doc.text(lines[i], 10, y);
+                        y += 7;
+                    }
+                } 
+                else if (mode === 'excel') {
+                    const data = new Uint8Array(event.target.result);
+                    const wb = XLSX.read(data, {type: 'array'});
+                    const text = XLSX.utils.sheet_to_txt(wb.Sheets[wb.SheetNames[0]]);
+                    const lines = doc.splitTextToSize(text, 180);
+                    let y = 10;
+                    for (let line of lines) {
+                        if (y > 280) { doc.addPage(); y = 10; }
+                        doc.text(line, 10, y);
+                        y += 7;
+                    }
+                }
+                else if (mode === 'img') {
+                    doc.addImage(event.target.result, 'JPEG', 10, 10, 180, 150);
+                }
+
+                doc.save(`Master_${file.name.split('.')[0]}.pdf`);
+                status.innerText = "> ✅ OPÉRATION RÉUSSIE (MOTEUR LOCAL)";
+            } catch (err) {
+                status.innerText = "> ❌ ERREUR CRITIQUE DE SEGMENTATION";
+            }
+        };
+
+        if (mode === 'img') reader.readAsDataURL(file);
+        else reader.readAsArrayBuffer(file);
+    };
+</script>
+</body>
+</html>

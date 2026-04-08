@@ -5,72 +5,78 @@
     <title>MASTER EXPLORER | HIGH-FIDELITY ENGINE</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <style>
-        body { background: #000; color: #00ff41; font-family: monospace; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-        .terminal { border: 2px solid #00ff41; padding: 30px; background: #050505; box-shadow: 0 0 20px #00ff41; text-align: center; width: 90%; max-width: 600px; }
-        .btn { background: transparent; color: #00ff41; border: 1px solid #00ff41; padding: 15px 30px; cursor: pointer; font-weight: bold; margin-top: 20px; text-transform: uppercase; }
-        .btn:hover { background: #00ff41; color: #000; }
-        #status { margin-top: 20px; color: #ffcc00; font-size: 0.8em; }
-        /* Zone invisible pour le rendu */
-        #render-zone { display: none; background: white; color: black; padding: 20px; }
+        body { background: #000; color: #00ff41; font-family: 'Courier New', monospace; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; overflow-x: hidden; }
+        .terminal { border: 2px solid #00ff41; padding: 40px; background: #050505; box-shadow: 0 0 25px #00ff41; text-align: center; width: 90%; max-width: 600px; z-index: 10; }
+        .btn { background: transparent; color: #00ff41; border: 1px solid #00ff41; padding: 20px 40px; cursor: pointer; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; transition: 0.3s; }
+        .btn:hover { background: #00ff41; color: #000; box-shadow: 0 0 15px #00ff41; }
+        #status { margin-top: 25px; color: #ffcc00; font-weight: bold; }
+        /* Zone de rendu invisible pour construire le document */
+        #render-zone { position: absolute; left: -9999px; top: 0; width: 800px; background: white; color: black; padding: 40px; }
+        img { max-width: 100%; height: auto; }
     </style>
 </head>
 <body>
 
 <div class="terminal">
-    <h2>[ MASTER ENGINE V17 : FIDÉLITÉ MAX ]</h2>
-    <p>> MODE : RENDU VISUEL + IMAGES (133 PAGES)</p>
-    <button class="btn" onclick="document.getElementById('in').click()">CONVERTIR AVEC IMAGES</button>
-    <input type="file" id="in" hidden onchange="processFull(this.files[0])">
-    <div id="status">SYSTÈME PRÊT</div>
+    <h1>[ MASTER ENGINE V18 ]</h1>
+    <p>> MODE : RENDU FIDÈLE + IMAGES (133 PAGES)</p>
+    <p style="font-size: 0.8em; color: #888;">STATUT : ACCÈS UNIVERSEL (SOURCE ÉTEINTE)</p>
+    
+    <button class="btn" onclick="document.getElementById('fileIn').click()">LANCER LA CONVERSION</button>
+    <input type="file" id="fileIn" accept=".docx" hidden>
+    
+    <div id="status">PRÊT POUR L'INJECTION</div>
 </div>
 
 <div id="render-zone"></div>
 
 <script>
-    async function processFull(file) {
-        const status = document.getElementById('status');
-        const renderZone = document.getElementById('render-zone');
-        status.innerText = "> EXTRACTION DES IMAGES ET STYLES...";
+    const fileIn = document.getElementById('fileIn');
+    const status = document.getElementById('status');
+    const renderZone = document.getElementById('render-zone');
 
+    fileIn.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        status.innerText = "> DÉCODAGE DES STRUCTURES ET IMAGES...";
+        
         const reader = new FileReader();
-        reader.onload = async (e) => {
+        reader.onload = async (event) => {
             try {
-                // Étape 1 : Conversion DOCX vers HTML (garde les images et styles)
-                const options = {
-                    styleMap: [
-                        "p[style-name='Title'] => h1:fresh",
-                        "p[style-name='Heading 1'] => h2:fresh"
-                    ]
-                };
-                
-                const result = await mammoth.convertToHtml({arrayBuffer: e.target.result}, options);
-                renderZone.innerHTML = result.value; // On place le contenu dans la zone blanche
+                // 1. Conversion DOCX vers HTML (pour garder la mise en page et les images)
+                const result = await mammoth.convertToHtml({ arrayBuffer: event.target.result });
+                renderZone.innerHTML = result.value;
 
-                status.innerText = "> GÉNÉRATION DU PDF (133 PAGES)... PATIENTEZ";
+                status.innerText = "> GÉNÉRATION PDF (133 PAGES)... VEUILLEZ PATIENTER";
 
-                // Étape 2 : Conversion HTML vers PDF avec html2pdf
+                // 2. Paramètres de sortie pour respecter les 133 pages
                 const opt = {
                     margin:       10,
-                    filename:     file.name.replace(".docx", ".pdf"),
+                    filename:     `Master_${file.name.replace(".docx", ".pdf")}`,
                     image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2, useCORS: true },
+                    html2canvas:  { scale: 2, useCORS: true, logging: false },
                     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
                     pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
                 };
 
-                // Lancement de la capture
+                // 3. Exécution du moteur de rendu (html2pdf)
                 await html2pdf().set(opt).from(renderZone).save();
 
-                status.innerText = "> ✅ RÉUSSI : MISE EN PAGE CONSERVÉE";
-                renderZone.innerHTML = ""; // Nettoyage
+                status.innerText = "> ✅ OPÉRATION RÉUSSIE";
+                status.style.color = "#00ff41";
+                renderZone.innerHTML = ""; // Nettoyage de la zone
             } catch (err) {
-                status.innerText = "> ❌ ERREUR : LE FICHIER EST TROP LOURD";
                 console.error(err);
+                status.innerText = "> ❌ ERREUR CRITIQUE DE RENDU";
+                status.style.color = "red";
             }
         };
+
         reader.readAsArrayBuffer(file);
-    }
+    };
 </script>
 </body>
 </html>
